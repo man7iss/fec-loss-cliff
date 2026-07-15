@@ -1,6 +1,6 @@
 # FEC-over-transport measurement harness
 
-The harness for [fec-loss-cliff](../fec-loss-cliff.md): it streams for a fixed duration three ways over a controlled network and records delivered goodput, FEC redundancy, and deadline delivery. The point is a reproducible comparison the prior FEC-in-QUIC work never ran: a TCP baseline next to QUIC, FEC over QUIC **DATAGRAM** frames (RFC 9221), and the **congestion controller swept as a variable**. Each bulk transfer runs for a fixed number of seconds and reports goodput, so a collapsed controller bounds its own runtime instead of taking minutes to move a fixed payload.
+The harness behind [the write-up](https://man7iss.com/posts/fec-loss-cliff/): it streams for a fixed duration three ways over a controlled network and records delivered goodput, FEC redundancy, and deadline delivery. It runs the comparison the prior FEC-in-QUIC work skipped: a TCP baseline next to QUIC, FEC over QUIC **DATAGRAM** frames (RFC 9221), and the **congestion controller swept as a variable**. Each bulk transfer runs for a fixed number of seconds and reports goodput, so a collapsed controller bounds its own runtime instead of taking minutes to move a fixed payload.
 
 ## The three arms
 
@@ -27,7 +27,6 @@ scripts/run.sh  build + run the matrix on Linux as root
 ## Build and test (any OS)
 
 ```
-cd src
 go test ./...          # fec, stats, netem, and loopback transport tests
 go build ./cmd/feccliff
 ```
@@ -39,7 +38,7 @@ The unit tests and the loopback transport tests run anywhere. The loss/RTT matri
 On the Hetzner box:
 
 ```
-git clone <repo> && cd .../fec-loss-cliff/src
+git clone https://github.com/man7iss/fec-loss-cliff && cd fec-loss-cliff
 sudo ./scripts/run.sh --quick                       # smoke: 3 conditions, cubic + bbr
 sudo ./scripts/run.sh                                # full matrix, writes results.csv
 sudo ./scripts/run.sh --cc cubic,bbr --duration 10 --reps 5
@@ -57,9 +56,9 @@ Mainline `tcp_bbr` is BBRv1. For the H3 (BBRv3 at the 2% cliff) row, build the o
 - **H5** (bulk FEC costs its redundancy): `quic-fec` `redundancy_pct` on the clean `perfect` cell, and `quic-fec` vs `quic` goodput.
 - **H6** (datagram FEC helps deadline traffic): `quic` deadline workload today; the FEC-datagram deadline path is the next arm to wire (see below).
 
-## Deliberately scoped out (documented, not hidden)
+## Deliberately scoped out
 
 - **The FEC deadline arm (`quic-fec` + `--workload deadline`)** is not implemented; the plain-QUIC deadline arm is, so H6 currently compares in-order QUIC against its own clean baseline. The datagram deadline sender/receiver is a direct extension of `serveFECBulk`.
 - **The loss-hiding "cheat" mode and the two-flow fairness arm (H4)** need a rate controller we own, because quic-go's controller reacts to datagram-packet loss natively and cannot be told to ignore it. Measuring the cheat therefore requires a raw-UDP arm with a custom AIMD controller and a `CountRecoveredAsLoss` toggle. That is the documented next arm; the compliant case is already covered by construction.
 
-Nothing here is a silent cap: the orchestrator logs every skipped controller and every failed cell.
+The orchestrator logs every skipped controller and every failed cell.
